@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#000000" />
+  <title>fishy_king_yt — Live Subscribers</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; min-height: 100%; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      color: #fff;
+      background:
+        radial-gradient(circle at 50% 38%, rgba(255,255,255,.055), transparent 33rem),
+        #000;
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+
+    main {
+      width: min(92vw, 900px);
+      min-height: 72vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .avatar-wrap {
+      width: clamp(112px, 18vw, 172px);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      overflow: hidden;
+      background: #0d0d0d;
+      box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 24px 80px rgba(255,255,255,.06);
+      margin-bottom: 24px;
+    }
+
+    #avatar {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      opacity: 0;
+      transform: scale(.97);
+      transition: opacity .35s ease, transform .35s ease;
+    }
+
+    #avatar.ready { opacity: 1; transform: scale(1); }
+
+    #channelName {
+      margin: 0;
+      max-width: 92vw;
+      font-size: clamp(28px, 5vw, 54px);
+      font-weight: 750;
+      letter-spacing: -.035em;
+      line-height: 1.05;
+      overflow-wrap: anywhere;
+    }
+
+    .counter {
+      margin-top: 34px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #subCount {
+      display: block;
+      min-width: 8ch;
+      font-variant-numeric: tabular-nums;
+      font-size: clamp(64px, 15vw, 154px);
+      font-weight: 820;
+      letter-spacing: -.065em;
+      line-height: .92;
+      text-shadow: 0 16px 60px rgba(255,255,255,.08);
+      transition: transform .22s ease, opacity .22s ease;
+    }
+
+    #subCount.bump { transform: scale(1.025); }
+
+    .label {
+      margin-top: 18px;
+      color: #888;
+      font-size: clamp(16px, 2.3vw, 23px);
+      font-weight: 600;
+      letter-spacing: .01em;
+    }
+
+    .status {
+      position: fixed;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #666;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      opacity: .8;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #454545;
+      box-shadow: 0 0 0 0 rgba(255,255,255,.15);
+    }
+
+    .status.live .dot {
+      background: #fff;
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(255,255,255,.2); }
+      70% { box-shadow: 0 0 0 8px rgba(255,255,255,0); }
+      100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+    }
+
+    @media (max-height: 620px) {
+      .avatar-wrap { width: 92px; margin-bottom: 15px; }
+      .counter { margin-top: 22px; }
+      .label { margin-top: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="avatar-wrap">
+      <img id="avatar" alt="fishy_king_yt profile picture" />
+    </div>
+    <h1 id="channelName">fishy_king_yt</h1>
+    <div class="counter">
+      <span id="subCount">—</span>
+      <span class="label">subscribers</span>
+    </div>
+  </main>
+
+  <div id="status" class="status"><span class="dot"></span><span id="statusText">Connecting…</span></div>
+
+  <script>
+    const HANDLE = '@fishy_king_yt';
+    const CHANNEL_URL = `https://www.youtube.com/${HANDLE}`;
+    const REFRESH_MS = 5000;
+
+    const avatar = document.getElementById('avatar');
+    const nameEl = document.getElementById('channelName');
+    const countEl = document.getElementById('subCount');
+    const statusEl = document.getElementById('status');
+    const statusText = document.getElementById('statusText');
+
+    let channelId = localStorage.getItem('fishy_channel_id') || '';
+    let currentCount = null;
+
+    function decodeHtml(value = '') {
+      const el = document.createElement('textarea');
+      el.innerHTML = value;
+      return el.value.replace(/\\u0026/g, '&').replace(/\\u003d/g, '=').replace(/\\\//g, '/');
+    }
+
+    function setProfile(name, image) {
+      if (name) nameEl.textContent = decodeHtml(name).replace(/ - YouTube$/, '');
+      if (image) {
+        avatar.src = decodeHtml(image);
+        avatar.onload = () => avatar.classList.add('ready');
+      }
+    }
+
+    function setStatus(text, live = false) {
+      statusText.textContent = text;
+      statusEl.classList.toggle('live', live);
+    }
+
+    function showCount(value) {
+      const next = Number(value);
+      if (!Number.isFinite(next)) return;
+      if (next === currentCount) return;
+      currentCount = next;
+      countEl.classList.remove('bump');
+      void countEl.offsetWidth;
+      countEl.textContent = Math.round(next).toLocaleString();
+      countEl.classList.add('bump');
+      setTimeout(() => countEl.classList.remove('bump'), 230);
+    }
+
+    function numberFromCompact(text) {
+      if (!text) return null;
+      const cleaned = String(text).replace(/subscribers?/i, '').trim().replace(/,/g, '');
+      const match = cleaned.match(/([0-9.]+)\s*([KMB])?/i);
+      if (!match) return null;
+      const n = Number(match[1]);
+      const unit = (match[2] || '').toUpperCase();
+      const mult = unit === 'K' ? 1e3 : unit === 'M' ? 1e6 : unit === 'B' ? 1e9 : 1;
+      return Math.round(n * mult);
+    }
+
+    async function getYoutubeHtml() {
+      const target = encodeURIComponent(CHANNEL_URL);
+      const proxies = [
+        `https://api.allorigins.win/raw?url=${target}`,
+        `https://api.codetabs.com/v1/proxy/?quest=${target}`
+      ];
+
+      for (const url of proxies) {
+        try {
+          const res = await fetch(url, { cache: 'no-store' });
+          if (!res.ok) continue;
+          const text = await res.text();
+          if (text && text.length > 5000) return text;
+        } catch (_) {}
+      }
+      throw new Error('Could not load channel page');
+    }
+
+    async function resolveChannel() {
+      const html = await getYoutubeHtml();
+
+      const id =
+        html.match(/"channelId":"(UC[\w-]{22})"/)?.[1] ||
+        html.match(/"externalId":"(UC[\w-]{22})"/)?.[1] ||
+        html.match(/itemprop="channelId"\s+content="(UC[\w-]{22})"/)?.[1];
+
+      const title =
+        html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/)?.[1] ||
+        html.match(/"channelName":"([^"]+)"/)?.[1];
+
+      const image =
+        html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/)?.[1] ||
+        html.match(/"avatar":\{"thumbnails":\[\{"url":"([^"]+)"/)?.[1];
+
+      const publicSubs =
+        html.match(/"subscriberCountText":\{"simpleText":"([^"]+)"/)?.[1] ||
+        html.match(/"subscriberCountText":\{"runs":\[\{"text":"([^"]+)"/)?.[1];
+
+      setProfile(title, image);
+      const fallbackCount = numberFromCompact(publicSubs);
+      if (fallbackCount !== null && currentCount === null) showCount(fallbackCount);
+
+      if (!id) throw new Error('Channel ID not found');
+      channelId = id;
+      localStorage.setItem('fishy_channel_id', id);
+      return id;
+    }
+
+    async function fetchLiveCount() {
+      if (!channelId) await resolveChannel();
+
+      const url = `https://api.socialcounts.org/youtube-live-subscriber-count/${channelId}`;
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`Live API returned ${res.status}`);
+      const data = await res.json();
+
+      const liveCount = data.est_sub ?? data.API_sub ?? data.subscribers ?? data.subscriberCount;
+      if (liveCount !== undefined && liveCount !== null) showCount(liveCount);
+
+      const possibleName = data.user?.name || data.channel?.title || data.title;
+      const possibleAvatar = data.user?.avatar || data.channel?.avatar || data.avatar;
+      if (possibleName || possibleAvatar) setProfile(possibleName, possibleAvatar);
+
+      setStatus('LIVE • updates every 5s', true);
+    }
+
+    async function refresh() {
+      try {
+        await fetchLiveCount();
+      } catch (err) {
+        console.warn(err);
+        setStatus('Reconnecting…');
+        try {
+          channelId = '';
+          await resolveChannel();
+          await fetchLiveCount();
+        } catch (err2) {
+          console.warn(err2);
+          setStatus('Waiting for YouTube…');
+        }
+      }
+    }
+
+    avatar.onerror = () => avatar.classList.remove('ready');
+    refresh();
+    setInterval(refresh, REFRESH_MS);
+  </script>
+</body>
+</html>
